@@ -20,7 +20,7 @@ jobs:
           import zipfile
           from pathlib import Path
 
-          with zipfile.ZipFile('torquenaut-automation-starter-v3.zip') as z:
+          with zipfile.ZipFile('torquenaut-automation-v4.zip.') as z:
               z.extractall('update-temp')
 
           root = Path('update-temp/torquenaut-starter')
