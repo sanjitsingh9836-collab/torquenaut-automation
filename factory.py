@@ -8,7 +8,7 @@ if not GEM: raise SystemExit('Missing GEMINI_API_KEY GitHub secret')
 PROMPT='''Create a fresh automotive engineering / car / motorcycle fact video for Indian Hinglish viewers. Choose a non-obvious topic and avoid generic clickbait. Return ONLY valid JSON with keys: topic, title, narration, image_searches (4 short English Wikimedia Commons search terms), caption, hashtags (array of 5), and fact_notes (array of 2-4 concise notes explaining factual claims and suggested source names/URLs if known). Narration should be 100-130 words in natural Hinglish/Hindi, Devanagari where practical. Include a strong hook in first sentence and a satisfying reveal. Avoid invented statistics, unsupported precise claims, unsafe driving advice, or presenting guesses as facts. If unsure, qualify the claim. The video may use still photos with motion graphics, so suggest visuals that match the topic.'''
 
 def gemini():
-    url=f'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEM}'
+    url=f'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={GEM}'
     r=requests.post(url,json={'contents':[{'parts':[{'text':PROMPT}]}],'generationConfig':{'temperature':0.75}},timeout=90); r.raise_for_status()
     text=r.json()['candidates'][0]['content']['parts'][0]['text'].strip()
     text=re.sub(r'^```(?:json)?\s*|\s*```$','',text)
