@@ -20,26 +20,22 @@ jobs:
           import zipfile
           from pathlib import Path
 
-          z = zipfile.ZipFile('torquenaut-automation-starter-v3.zip')
-          z.extractall('update-temp')
+          with zipfile.ZipFile('torquenaut-automation-starter-v3.zip') as z:
+              z.extractall('update-temp')
 
           root = Path('update-temp/torquenaut-starter')
 
           for name in ['factory.py', 'requirements.txt', 'README.md']:
               src = root / name
-              if src.exists():
-                  Path(name).write_bytes(src.read_bytes())
-
-          workflow = root / '.github/workflows/daily.yml'
-          target = Path('.github/workflows/daily.yml')
-          target.parent.mkdir(parents=True, exist_ok=True)
-          target.write_bytes(workflow.read_bytes())
+              if not src.exists():
+                  raise FileNotFoundError(str(src))
+              Path(name).write_bytes(src.read_bytes())
           PY
 
       - name: Commit updated files
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add factory.py requirements.txt README.md .github/workflows/daily.yml
+          git add factory.py requirements.txt README.md
           git commit -m "Update TORQUENAUT automation to v3" || echo "No changes"
           git push
