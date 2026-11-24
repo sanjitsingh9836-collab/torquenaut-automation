@@ -1,16 +1,10 @@
-# TORQUENAUT Automated Video Draft Factory
+# TORQUENAUT Automation v4
 
-This cloud workflow generates a short vertical automotive educational draft: Gemini script, Hindi TTS, Wikimedia Commons still images with slow motion, captions, MP4, and post text. It does **not** automatically publish to Instagram or YouTube.
+Creates a 9:16 automotive video draft using Gemini for the script, Wikimedia Commons still images (with attribution), Edge TTS Hindi male neural voice, FFmpeg motion effects, and styled subtitles.
 
-## Required GitHub secret
-- `GEMINI_API_KEY` — Google AI Studio key
+Required GitHub Actions secret: `GEMINI_API_KEY`.
+Optional repository variable: `GEMINI_MODEL` (defaults to `gemini-3.5-flash-lite`; use a model enabled for your Google AI Studio project).
 
-No Pexels key is required. Image retrieval uses the Wikimedia Commons API (no key) and records image attribution/license metadata in `output/image_credits.json`. Wikimedia results may vary; check credits and licenses before publishing.
+Run with GitHub Actions. The output artifact includes MP4, MP3 voiceover, SRT captions, content JSON, posting copy, and image attribution.
 
-## Run from mobile
-1. Upload/replace `factory.py`, `requirements.txt`, `README.md`, and `.github/workflows/daily.yml` in your repository.
-2. Confirm repository Settings → Secrets and variables → Actions has `GEMINI_API_KEY`.
-3. Open Actions → **TORQUENAUT Video Factory** → Run workflow → Run workflow.
-4. When complete, open the run and download the artifact `torquenaut-video-draft`.
-
-Schedule: 02:30 and 13:30 UTC (08:00 and 19:00 India time). GitHub scheduled jobs can be delayed; manual runs are available. This is a draft maker, not guaranteed daily uptime, viral results, or lifetime-free service. Inspect factual notes and image license credits before publishing.
+Note: visuals are animated still images, not generated live-action video clips. Review facts, image licenses, pronunciation and quality before publishing. No automatic social publishing is included.
