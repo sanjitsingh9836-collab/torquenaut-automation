@@ -1,0 +1,43 @@
+name: TORQUENAUT Video Factory
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 2 * * *'
+    - cron: '30 13 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install -r requirements.txt
+
+      - name: Generate video
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+        run: python factory.py
+
+      - name: Save generated video
+        uses: actions/upload-artifact@v4
+        with:
+          name: torquenaut-video
+          path: output/
+          retention-days: 7
