@@ -14,27 +14,43 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract and install v3 files
+      - name: Extract and install v4 files
         run: |
           python - <<'PY'
           import zipfile
           from pathlib import Path
-with zipfile.ZipFile('torquenaut-automation-v4.zip') as z:
-              z.extractall('update-temp')
 
-          root = Path('update-temp/torquenaut-starter')
+          zip_path = Path("torquenaut-automation-v4.zip")
 
-          for name in ['factory.py', 'requirements.txt', 'README.md']:
+          if not zip_path.exists():
+              raise FileNotFoundError(
+                  f"ZIP not found: {zip_path}. "
+                  "Upload it to the root of the repository."
+              )
+
+          with zipfile.ZipFile(zip_path) as z:
+              z.extractall("update-temp")
+
+          root = Path("update-temp/torquenaut-starter")
+
+          for name in ["factory.py", "requirements.txt", "README.md"]:
               src = root / name
+
               if not src.exists():
-                  raise FileNotFoundError(str(src))
+                  raise FileNotFoundError(f"Missing file inside ZIP: {src}")
+
               Path(name).write_bytes(src.read_bytes())
+
+          print("TORQUENAUT v4 files installed successfully.")
           PY
 
       - name: Commit updated files
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add factory.py requirements.txt README.md
-          git commit -m "Update TORQUENAUT automation to v3" || echo "No changes"
+
+          git commit -m "Update TORQUENAUT to v4" || echo "No changes to commit"
+
           git push
