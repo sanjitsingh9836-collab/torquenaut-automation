@@ -103,7 +103,8 @@ def subtitles(narration,duration,path):
    n=len(chunk.split()); end=min(duration,t+duration*n/total)
    ws=chunk.split(); key=max((w for w in ws if w.lower().strip(".,!?") not in stop),key=len,default=ws[-1])
    marked=chunk.replace(key,"{\\c&H0000BFFF&}"+key+"{\\c&H00FFFFFF&}",1)
-   animated="{\\fscx82\\fscy82\\t(0,130,\\fscx100\\fscy100)}"+marked\n   f.write(f"Dialogue: 0,{stamp(t)},{stamp(end)},Default,,0,0,0,,{animated}\\n")
+   animated="{\\\\fscx82\\\\fscy82\\\\t(0,130,\\\\fscx100\\\\fscy100)}"+marked
+   f.write(f"Dialogue: 0,{stamp(t)},{stamp(end)},Default,,0,0,0,,{animated}\\n")
    t=end
 
 def render(paths,audio,duration,narration,final,title):
