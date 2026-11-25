@@ -1,16 +1,22 @@
-# TORQUENAUT Automation v6
+# TORQUENAUT Automation
 
-This update improves the image-fetching resilience:
-- Searches Wikimedia Commons with multiple query phrases.
-- Skips corrupt/unsupported images instead of stopping at the first failure.
-- Uses a no-key Unsplash photo fallback if Commons returns fewer than 4 usable images.
-- Tries two Hindi neural TTS voices.
-- Produces vertical video, yellow bold outlined subtitles, and posting copy.
+Automated short-form automotive video generator for **TORQUENAUT** and the **MACHINE KA RAAZ** series.
 
-**Honest limitation:** this is a photo-based motion video (pan/zoom), not generative AI video footage. Publishing to YouTube/Instagram is not automated by this package.
+## What it does
+- Generates a short Hinglish script with Gemini (falls back to a built-in script if the API call fails).
+- Searches Wikimedia Commons using topic-specific phrases and downloads vertical images; uses Unsplash fallback images if needed.
+- Produces a Hindi/Hinglish voice track using Edge TTS, with Google TTS fallback.
+- Builds a 9:16 MP4 with subtle image movement and burned-in yellow outlined subtitles.
+- Writes title, topic, narration, posting caption, and subtitle files into `output/`.
+- GitHub Actions scheduled workflow runs twice daily (08:00 and 19:00 IST).
 
-## Installation
-Run the existing GitHub updater workflow after uploading `torquenaut-automation-v6.zip` to the repository root and changing the updater's ZIP filename to v6.
+## Current limitations
+This produces photo-based videos with motion—not generated cinematic video clips. Topic-relevance of search images is not guaranteed, so review videos before publishing. Uploading/scheduling to YouTube or Instagram is not yet connected.
 
+## Required repository secret
+Set `GEMINI_API_KEY` in repository Settings → Secrets and variables → Actions.
 
-Version 6 fixes the FFmpeg zoom/pan rendering failure by using safer frame-based motion expressions.
+## Run manually
+GitHub → Actions → **TorqueNaut Video Factory** → **Run workflow**.
+
+The workflow uploads generated files as a downloadable artifact for 7 days.
