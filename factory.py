@@ -5,7 +5,7 @@ from edge_tts import Communicate
 
 OUT=Path("output"); OUT.mkdir(exist_ok=True)
 KEY=os.getenv("GEMINI_API_KEY")
-MODEL=os.getenv("GEMINI_MODEL","gemini-2.5-flash")
+MODEL=os.getenv("GEMINI_MODEL","gemini-3.8-flash")
 W,H=1080,1920
 FALLBACK=[
  "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1280&q=85",
@@ -126,7 +126,7 @@ def main():
  s=story(); narration=s["narration"]
  pics=images(s.get("searches",[]) or [s.get("topic","automotive")])
  audio=OUT/"voice.mp3"; asyncio.run(voice(narration,audio)); length=dur(audio)
- final=OUT/"TORQUENAUT_"+re.sub(r"[^A-Za-z0-9]+","_",s["title"]).strip("_")[:60]+".mp4"
+ final=OUT/("TORQUENAUT_"+re.sub(r"[^A-Za-z0-9]+","_",s["title"]).strip("_")[:60]+".mp4")
  render(pics,audio,length,narration,final)
  (OUT/"title.txt").write_text(s["title"],encoding="utf8")
  (OUT/"topic.txt").write_text(s.get("topic",""),encoding="utf8")
