@@ -4,6 +4,7 @@ from PIL import Image, ImageOps, ImageEnhance
 from edge_tts import Communicate
 
 OUT=Path("output"); OUT.mkdir(exist_ok=True)
+IMAGE_SOURCES=[]
 KEY=os.getenv("GEMINI_API_KEY")
 MODEL=os.getenv("GEMINI_MODEL","gemini-3.8-flash")
 W,H=1080,1920
@@ -56,28 +57,28 @@ def images(queries):
  found=[]
  for q in queries:
   try:
-   urls=commons(q); random.shuffle(urls)
+   urls=commons(q)
    print("Commons search",q,"found",len(urls))
-   for u in urls:
+   for u in urls[:2]:
     if u and u not in found: found.append(u)
   except Exception as e: print("Commons error",str(e)[:160])
  paths=[]
  for u in found:
   p=OUT/f"scene_{len(paths)+1:02d}.jpg"
-  try: dl(u,p); paths.append(p); print("Downloaded",p)
+  try: dl(u,p); paths.append(p); IMAGE_SOURCES.append(u); print("Downloaded",p)
   except Exception as e: p.unlink(missing_ok=True); print("Image skipped",str(e)[:100])
   if len(paths)>=8: break
  for u in FALLBACK:
   if len(paths)>=8: break
   p=OUT/f"fallback_{len(paths)+1:02d}.jpg"
-  try: dl(u,p); paths.append(p); print("Fallback image",p)
+  try: dl(u,p); paths.append(p); IMAGE_SOURCES.append(u); print("Fallback image",p)
   except Exception as e: p.unlink(missing_ok=True); print("Fallback failed",str(e)[:100])
  if len(paths)<4: raise RuntimeError("Not enough usable photos")
  return paths
 async def voice(text,path):
  for v in ["hi-IN-SwaraNeural","hi-IN-NeerjaNeural","hi-IN-MadhurNeural","hi-IN-PrabhatNeural"]:
   try:
-   await Communicate(text=text,voice=v,rate="+3%",pitch="+0Hz").save(str(path))
+   await Communicate(text=text,voice=v,rate="+0%",pitch="+0Hz").save(str(path))
    if path.exists() and path.stat().st_size>1000: print("TTS voice",v); return
   except Exception as e: path.unlink(missing_ok=True); print("Edge voice error",v,str(e)[:120])
  try:
@@ -89,33 +90,44 @@ async def voice(text,path):
 def dur(path):
  return float(subprocess.check_output(["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",str(path)],text=True).strip())
 def subtitles(narration,duration,path):
- words=narration.split(); chunks=[" ".join(words[i:i+5]) for i in range(0,len(words),5)]
+ # Punchy 3-4 word captions with a highlighted keyword.
+ words=narration.split(); chunks=[" ".join(words[i:i+4]) for i in range(0,len(words),4)]
  total=max(1,len(words)); t=0
  def stamp(sec):
-  ms=round(sec*1000); h=ms//3600000; ms%=3600000; m=ms//60000; ms%=60000; s=ms//1000; ms%=1000
-  return f"{h:02}:{m:02}:{s:02},{ms:03}"
+  h=int(sec//3600); m=int((sec%3600)//60); s=sec%60
+  return f"{h}:{m:02}:{s:05.2f}"
+ stop={"hai","hain","ka","ki","ke","se","aur","ek","ye","is","to","mein","ko","par","the","a","an"}
  with open(path,"w",encoding="utf-8") as f:
-  for i,c in enumerate(chunks,1):
-   n=len(c.split()); end=min(duration,t+duration*n/total)
-   f.write(f"{i}\n{stamp(t)} --> {stamp(end)}\n{c}\n\n"); t=end
-def render(paths,audio,duration,narration,final):
+  f.write("[Script Info]\\nScriptType: v4.00+\\nPlayResX: 1080\\nPlayResY: 1920\\nWrapStyle: 2\\n\\n[V4+ Styles]\\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\\nStyle: Default,DejaVu Sans,66,&H00FFFFFF,&H0000FFFF,&H00151515,&H99000000,-1,0,0,0,100,100,0,0,1,5,2,2,90,90,250,1\\n\\n[Events]\\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\\n")
+  for chunk in chunks:
+   n=len(chunk.split()); end=min(duration,t+duration*n/total)
+   ws=chunk.split(); key=max((w for w in ws if w.lower().strip(".,!?") not in stop),key=len,default=ws[-1])
+   marked=chunk.replace(key,"{\\\\c&H0000BFFF&}"+key+"{\\\\c&H00FFFFFF&}",1)
+   f.write(f"Dialogue: 0,{stamp(t)},{stamp(end)},Default,,0,0,0,,{marked}\\n")
+   t=end
+
+def render(paths,audio,duration,narration,final,title):
  segs=[]
  per=duration/len(paths)
  for i,img in enumerate(paths):
   seg=OUT/f"part_{i:02d}.mp4"
-  # Slow Ken Burns motion, alternating zoom direction.
-  z="min(zoom+0.0007,1.08)" if i%2==0 else "if(lte(zoom,1.0),1.08,max(zoom-0.0007,1.0))"
+  # Slow cinematic movement, alternating direction, and gentle scene fade-ins.
+  z="min(zoom+0.00065,1.10)" if i%2==0 else "if(lte(zoom,1.0),1.10,max(zoom-0.00065,1.0))"
   x="(iw-iw/zoom)/2"; y="(ih-ih/zoom)/2"
-  vf=f"zoompan=z='{z}':x='{x}':y='{y}':d={int(per*30)}:s=1080x1920:fps=30,format=yuv420p"
+  vf=f"zoompan=z='{z}':x='{x}':y='{y}':d={int(per*30)}:s=1080x1920:fps=30,fade=t=in:st=0:d=0.18,eq=contrast=1.04:saturation=1.10,format=yuv420p"
   run(["ffmpeg","-y","-loop","1","-i",str(img),"-t",f"{per:.3f}","-vf",vf,"-r","30","-c:v","libx264","-preset","veryfast","-an",str(seg)])
   segs.append(seg)
- concat=OUT/"concat.txt"; concat.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in segs),encoding="utf8")
+ concat=OUT/"concat.txt"; concat.write_text("".join(f"file '{p.resolve().as_posix()}'\\n" for p in segs),encoding="utf8")
  silent=OUT/"silent.mp4"
  run(["ffmpeg","-y","-f","concat","-safe","0","-i",str(concat),"-c","copy",str(silent)])
- srt=OUT/"captions.srt"; subtitles(narration,duration,srt)
- subpath=srt.resolve().as_posix().replace(":","\\:").replace("'","\\'")
- style="FontName=DejaVu Sans,FontSize=22,Bold=1,PrimaryColour=&H0000FFFF,OutlineColour=&H00101010,BorderStyle=1,Outline=3,Shadow=1,Alignment=2,MarginV=230"
- run(["ffmpeg","-y","-i",str(silent),"-i",str(audio),"-vf",f"subtitles='{subpath}':force_style='{style}'","-c:v","libx264","-preset","veryfast","-pix_fmt","yuv420p","-c:a","aac","-b:a","160k","-shortest","-movflags","+faststart",str(final)])
+ ass=OUT/"captions.ass"; subtitles(narration,duration,ass)
+ subpath=ass.resolve().as_posix().replace(":","\\:").replace("'","\\'")
+ clean_title=re.sub(r"[^A-Za-z0-9 ,!?'-]","",title)[:42].replace("'","\\'")
+ vf=f"subtitles='{subpath}',drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='{clean_title}':fontsize=54:fontcolor=white:box=1:boxcolor=black@0.72:boxborderw=24:x=(w-text_w)/2:y=210:enable='between(t,0,2.3)'"
+ bed_duration=max(1,duration-0.8)
+ # Low-volume generated ambient tones, no copyrighted track.
+ fc=f"[2:a]volume=0.018,afade=t=in:st=0:d=1,afade=t=out:st={bed_duration:.2f}:d=0.8,lowpass=f=700[b1];[3:a]volume=0.009,lowpass=f=900[b2];[4:a]volume=0.006,lowpass=f=1200[b3];[b1][b2][b3]amix=inputs=3:normalize=0[bed];[1:a]volume=1.0[voice];[voice][bed]amix=inputs=2:duration=first:dropout_transition=1[a]"
+ run(["ffmpeg","-y","-i",str(silent),"-i",str(audio),"-f","lavfi","-i",f"sine=frequency=110:duration={duration:.2f}","-f","lavfi","-i",f"sine=frequency=165:duration={duration:.2f}","-f","lavfi","-i",f"sine=frequency=220:duration={duration:.2f}","-filter_complex",fc,"-map","0:v","-map","[a]","-vf",vf,"-c:v","libx264","-preset","veryfast","-pix_fmt","yuv420p","-c:a","aac","-b:a","160k","-shortest","-movflags","+faststart",str(final)])
 def posting(s):
  title=s["title"]; text=s["narration"]
  return f"{title}\n\n{text}\n\nHar machine ke andar chhupa hai ek raaz. Follow TORQUENAUT.\n\n#MachineKaRaaz #TorqueNaut #Cars #Bikes #Engineering #AutoFacts #HindiFacts #ReelsIndia #YouTubeShorts"
@@ -127,7 +139,7 @@ def main():
  pics=images(s.get("searches",[]) or [s.get("topic","automotive")])
  audio=OUT/"voice.mp3"; asyncio.run(voice(narration,audio)); length=dur(audio)
  final=OUT/("TORQUENAUT_"+re.sub(r"[^A-Za-z0-9]+","_",s["title"]).strip("_")[:60]+".mp4")
- render(pics,audio,length,narration,final)
+ render(pics,audio,length,narration,final,s["title"])
  (OUT/"title.txt").write_text(s["title"],encoding="utf8")
  (OUT/"topic.txt").write_text(s.get("topic",""),encoding="utf8")
  (OUT/"narration.txt").write_text(narration,encoding="utf8")
