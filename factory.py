@@ -111,10 +111,22 @@ def render(paths,audio,duration,narration,final,title):
  per=duration/len(paths)
  for i,img in enumerate(paths):
   seg=OUT/f"part_{i:02d}.mp4"
-  # Slow cinematic movement, alternating direction, and gentle scene fade-ins.
-  z="min(zoom+0.00065,1.10)" if i%2==0 else "if(lte(zoom,1.0),1.10,max(zoom-0.00065,1.0))"
-  x="(iw-iw/zoom)/2"; y="(ih-ih/zoom)/2"
-  vf=f"zoompan=z='{z}':x='{x}':y='{y}':d={int(per*30)}:s=1080x1920:fps=30,fade=t=in:st=0:d=0.18,eq=contrast=1.04:saturation=1.10,format=yuv420p"
+  # Give EVERY still a distinct cinematic camera move (push, pull, or directional drift).
+  frames=int(per*30)
+  mode=i%6
+  if mode==0:  # slow push in, slightly toward upper center
+   z="min(1.0+on/1800,1.12)"; x="(iw-iw/zoom)/2"; y="(ih-ih/zoom)*0.38"
+  elif mode==1:  # pull out
+   z="max(1.12-on/1800,1.0)"; x="(iw-iw/zoom)/2"; y="(ih-ih/zoom)*0.52"
+  elif mode==2:  # pan left to right
+   z="1.08"; x="(iw-iw/zoom)*on/"+str(max(frames,1)); y="(ih-ih/zoom)/2"
+  elif mode==3:  # pan right to left
+   z="1.08"; x="(iw-iw/zoom)*(1-on/"+str(max(frames,1))+")"; y="(ih-ih/zoom)/2"
+  elif mode==4:  # push toward lower-right
+   z="min(1.0+on/1900,1.10)"; x="(iw-iw/zoom)*0.72"; y="(ih-ih/zoom)*0.72"
+  else:  # gentle vertical drift
+   z="1.07"; x="(iw-iw/zoom)/2"; y="(ih-ih/zoom)*on/"+str(max(frames,1))
+  vf=f"zoompan=z='{z}':x='{x}':y='{y}':d={frames}:s=1080x1920:fps=30,fade=t=in:st=0:d=0.22,eq=contrast=1.07:saturation=1.14:brightness=0.01,unsharp=5:5:0.35:5:5:0,format=yuv420p"
   run(["ffmpeg","-y","-loop","1","-i",str(img),"-t",f"{per:.3f}","-vf",vf,"-r","30","-c:v","libx264","-preset","veryfast","-an",str(seg)])
   segs.append(seg)
  concat=OUT/"concat.txt"; concat.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in segs),encoding="utf8")
