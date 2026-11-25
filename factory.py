@@ -1,13 +1,32 @@
-import os, json, re, random, subprocess, urllib.parse, urllib.request, asyncio, shutil
+import os
+import json
+import re
+import random
+import subprocess
+import urllib.parse
+import urllib.request
+import asyncio
+import shutil
 from pathlib import Path
+
 from PIL import Image, ImageOps, ImageEnhance
 from edge_tts import Communicate
+
+
+# ============================================================
+# TORQUENAUT AUTOMATIC VIDEO FACTORY
+# ============================================================
 
 OUT = Path("output")
 OUT.mkdir(exist_ok=True)
 
-MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+MODEL = os.getenv(
+    "GEMINI_MODEL",
+    "gemini-3.5-flash-lite"
+)
+
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+
 
 FALLBACK_PHOTOS = [
     "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1280&q=85",
@@ -21,7 +40,12 @@ FALLBACK_PHOTOS = [
 ]
 
 
+# ============================================================
+# UTILITIES
+# ============================================================
+
 def run(cmd):
+
     p = subprocess.run(
         cmd,
         stdout=subprocess.DEVNULL,
@@ -29,29 +53,53 @@ def run(cmd):
         text=True
     )
 
-    if p.returncode:
+    if p.returncode != 0:
+
         raise RuntimeError(
-            "Command failed: "
+            "Command failed:\n"
             + " ".join(cmd)
-            + "\n"
-            + p.stderr[-2500:]
+            + "\n\n"
+            + p.stderr[-3000:]
         )
 
 
+def clean_output():
+
+    for p in OUT.iterdir():
+
+        if p.is_file():
+            p.unlink()
+
+        elif p.is_dir():
+            shutil.rmtree(p)
+
+
+# ============================================================
+# AI SCRIPT GENERATION
+# ============================================================
+
 def gemini_json(prompt):
+
     if not GEMINI_KEY:
-        raise RuntimeError("GEMINI_API_KEY secret is missing.")
+
+        raise RuntimeError(
+            "GEMINI_API_KEY secret is missing."
+        )
 
     from google import genai
 
-    client = genai.Client(api_key=GEMINI_KEY)
+    client = genai.Client(
+        api_key=GEMINI_KEY
+    )
 
     response = client.models.generate_content(
         model=MODEL,
         contents=prompt
     )
 
-    raw = (response.text or "").strip()
+    raw = (
+        response.text or ""
+    ).strip()
 
     raw = re.sub(
         r"^```(?:json)?\s*|\s*```$",
@@ -66,109 +114,171 @@ def gemini_json(prompt):
 def create_story():
 
     prompt = """
-Create one factual, engaging 45-55 second Hinglish automotive short
-for Indian viewers.
+You are a professional automotive content creator.
 
-Choose a fresh topic about:
-cars, bikes, engineering, technology, myths, history,
-mechanics, unusual facts or automotive secrets.
+Create one fascinating, factual, high-retention
+short video for an Indian audience.
 
-The content should be interesting and easy to understand.
+CONTENT:
+Cars, motorcycles, automotive engineering,
+technology, history, myths, mechanics,
+unusual facts and hidden machine secrets.
 
-Do not invent facts.
+SERIES:
+MACHINE KA RAAZ
 
-The opening must have a powerful hook.
+BRAND:
+TORQUENAUT
 
-The ending should make viewers comment.
+AUDIENCE:
+Indian viewers who understand Hindi and Hinglish.
 
-Output ONLY valid JSON:
+VIDEO:
+45-60 seconds.
+
+SCRIPT REQUIREMENTS:
+
+1. Start with a powerful curiosity hook.
+2. Use natural spoken Hinglish.
+3. Avoid robotic textbook language.
+4. Explain the science simply.
+5. Include surprising information.
+6. Keep sentences short.
+7. Make the narration exciting.
+8. Do not invent statistics.
+9. End with a question encouraging comments.
+10. Do not repeat recently overused topics if possible.
+
+Return ONLY valid JSON:
 
 {
-"title":"short catchy title",
-"topic":"subject",
-"narration":"natural spoken Hinglish, about 105-125 words, strong hook, ending question",
-"searches":["8 image search phrases, 2-5 words each"]
+"title":"Catchy video title",
+"topic":"Topic name",
+"narration":"Complete spoken Hinglish narration",
+"searches":[
+"image search phrase 1",
+"image search phrase 2",
+"image search phrase 3",
+"image search phrase 4",
+"image search phrase 5",
+"image search phrase 6",
+"image search phrase 7",
+"image search phrase 8"
+]
 }
 """
 
     try:
 
-        d = gemini_json(prompt)
+        story = gemini_json(prompt)
 
-        if not isinstance(d.get("searches"), list):
-            d["searches"] = [
-                d.get("topic", "automotive"),
+        if not story.get("title"):
+            raise ValueError("Missing title")
+
+        if not story.get("narration"):
+            raise ValueError("Missing narration")
+
+        if not isinstance(
+            story.get("searches"),
+            list
+        ):
+
+            story["searches"] = [
+                story.get("topic", "automotive"),
                 "car engine",
-                "motorcycle"
+                "motorcycle engineering"
             ]
 
-        if not d.get("narration") or not d.get("title"):
-            raise ValueError("Incomplete script response")
+        print("AI topic:", story.get("topic"))
 
-        return d
+        print("AI title:", story.get("title"))
+
+        return story
 
     except Exception as e:
 
-        print("Script generation fallback:", repr(e))
+        print(
+            "AI script fallback:",
+            repr(e)
+        )
 
         return {
-            "title": "Machine Ka Raaz: Engine Kaise Kaam Karta Hai?",
-            "topic": "Combustion engine basics",
+
+            "title":
+            "Machine Ka Raaz: Engine Ki Power",
+
+            "topic":
+            "How engines work",
 
             "narration": """
-Kabhi socha hai, ek chhota sa spark poori gaadi
-ko kaise chala deta hai?
+Kabhi socha hai, engine ke andar
+itni power aati kahan se hai?
 
-Engine ke andar piston hawa aur fuel ke mixture
-ko compress karta hai.
+Jab tum gaadi start karte ho,
+engine ke cylinders ke andar
+hawa aur fuel mix hote hain.
 
-Phir spark plug ignition karta hai aur combustion
-se pressure banta hai.
+Piston is mixture ko compress karta hai.
 
-Ye pressure piston ko neeche dhakelta hai.
+Phir spark plug ignition karta hai,
+aur pressure piston ko neeche dhakelta hai.
 
-Connecting rod is movement ko crankshaft ke
-rotation mein badalti hai.
+Connecting rod is movement ko
+crankshaft ki rotation mein badal deti hai.
 
-Aur wahi rotation transmission ke through
-wheels tak pahunchta hai.
+Aur isi rotation se wheels ko power milti hai.
 
-Engine ke andar ye cycle baar baar repeat hoti hai.
+Lekin engine ka asli raaz sirf power nahi hai.
 
-Isi liye timing, cooling aur lubrication
-bahut important hain.
+Perfect timing, lubrication aur cooling
+ke bina engine kuch hi der mein damage ho sakta hai.
 
-Machine ka raaz ye hai:
-power sirf ek blast se nahi,
-controlled cycles se milti hai.
+Isi liye ek engine ke andar
+hazaaron parts ek saath perfectly kaam karte hain.
 
-Tum next kis machine ka raaz jaan-na chahoge?
+Machine Ka Raaz.
+
+Agli baar kis machine ka secret jaan-na hai?
 """.strip(),
 
             "searches": [
-                "car engine",
-                "piston crankshaft",
+                "automotive engine",
+                "engine piston",
                 "spark plug",
-                "engine assembly",
-                "car dashboard",
-                "automotive workshop",
-                "engine block",
-                "motorcycle engine"
+                "crankshaft",
+                "car engine parts",
+                "mechanic workshop",
+                "motorcycle engine",
+                "sports car"
             ]
         }
 
 
+# ============================================================
+# IMAGE SEARCH
+# ============================================================
+
 def commons_search(query, limit=10):
 
     params = {
+
         "action": "query",
+
         "format": "json",
+
         "generator": "search",
-        "gsrsearch": "filetype:bitmap " + query,
+
+        "gsrsearch":
+        "filetype:bitmap " + query,
+
         "gsrnamespace": 6,
+
         "gsrlimit": limit,
+
         "prop": "imageinfo",
+
         "iiprop": "url|extmetadata",
+
         "iiurlwidth": 1280
     }
 
@@ -178,70 +288,124 @@ def commons_search(query, limit=10):
     )
 
     req = urllib.request.Request(
+
         url,
+
         headers={
             "User-Agent":
-            "TorqueNautFactory/2.0 (automated creator)"
+            "TorqueNautFactory/3.0"
         }
     )
 
-    with urllib.request.urlopen(req, timeout=25) as r:
+    with urllib.request.urlopen(
+        req,
+        timeout=30
+    ) as r:
+
         data = json.load(r)
 
-    out = []
+    results = []
 
-    for p in data.get("query", {}).get("pages", {}).values():
+    pages = (
+        data.get("query", {})
+        .get("pages", {})
+        .values()
+    )
 
-        info = (p.get("imageinfo") or [{}])[0]
+    for page in pages:
 
-        u = info.get("thumburl") or info.get("url")
+        info = (
+            page.get("imageinfo")
+            or [{}]
+        )[0]
 
-        if u:
+        url = (
+            info.get("thumburl")
+            or info.get("url")
+        )
 
-            meta = info.get("extmetadata", {})
+        if not url:
+            continue
 
-            out.append(
-                (
-                    u,
-                    meta.get("Artist", {}).get("value", ""),
-                    p.get("title", "")
-                )
+        metadata = (
+            info.get("extmetadata")
+            or {}
+        )
+
+        artist = (
+            metadata.get("Artist", {})
+            .get("value", "")
+        )
+
+        results.append(
+            (
+                url,
+                artist,
+                page.get("title", "")
             )
+        )
 
-    return out
+    return results
 
+
+# ============================================================
+# IMAGE DOWNLOAD AND PROCESSING
+# ============================================================
 
 def download_image(url, path):
 
     req = urllib.request.Request(
+
         url,
+
         headers={
             "User-Agent":
-            "Mozilla/5.0 TORQUENAUT creator"
+            "Mozilla/5.0 TORQUENAUT"
         }
     )
 
-    with urllib.request.urlopen(req, timeout=30) as r:
-        path.write_bytes(r.read())
+    with urllib.request.urlopen(
+        req,
+        timeout=35
+    ) as r:
 
-    with Image.open(path) as im:
+        path.write_bytes(
+            r.read()
+        )
 
-        im = im.convert("RGB")
+    with Image.open(path) as image:
 
-        im = ImageOps.fit(
-            im,
+        image = image.convert("RGB")
+
+        image = ImageOps.fit(
+
+            image,
+
             (1080, 1920),
+
             method=Image.Resampling.LANCZOS
         )
 
-        im = ImageEnhance.Contrast(im).enhance(1.08)
+        image = ImageEnhance.Contrast(
+            image
+        ).enhance(1.07)
 
-        im = ImageEnhance.Color(im).enhance(1.05)
+        image = ImageEnhance.Color(
+            image
+        ).enhance(1.06)
 
-        im.save(
+        image = ImageEnhance.Sharpness(
+            image
+        ).enhance(1.12)
+
+        image.save(
+
             path,
+
             "JPEG",
-            quality=90,
+
+            quality=91,
+
             optimize=True
         )
 
@@ -250,48 +414,65 @@ def fetch_images(searches, count=8):
 
     candidates = []
 
-    for q in searches:
+    for query in searches:
 
         try:
 
-            found = commons_search(q, 10)
+            found = commons_search(
+                query,
+                limit=10
+            )
 
             random.shuffle(found)
 
             candidates.extend(found)
 
             print(
-                f"Commons '{q}': "
+                f"Image search '{query}': "
                 f"{len(found)} results"
             )
 
         except Exception as e:
 
             print(
-                "Commons search skipped:",
-                q,
-                str(e)[:160]
+                "Search failed:",
+                query,
+                str(e)[:150]
             )
-
-    seen = set()
 
     usable = []
 
-    for u, artist, title in candidates:
+    seen = set()
 
-        if u in seen:
+    for url, artist, title in candidates:
+
+        if url in seen:
             continue
 
-        seen.add(u)
+        seen.add(url)
 
-        dest = OUT / f"image_{len(usable)+1:02d}.jpg"
+        path = OUT / (
+            f"image_{len(usable)+1:02d}.jpg"
+        )
 
         try:
 
-            download_image(u, dest)
+            download_image(
+                url,
+                path
+            )
 
             usable.append(
-                (dest, artist, title)
+                (
+                    path,
+                    artist,
+                    title
+                )
+            )
+
+            print(
+                "Image downloaded:",
+                path.name
             )
 
             if len(usable) >= count:
@@ -299,62 +480,89 @@ def fetch_images(searches, count=8):
 
         except Exception as e:
 
-            dest.unlink(missing_ok=True)
+            path.unlink(
+                missing_ok=True
+            )
 
             print(
-                "Image skipped:",
-                str(e)[:160]
+                "Image failed:",
+                str(e)[:150]
             )
+
+    # Backup image sources
 
     if len(usable) < count:
 
-        fallback = FALLBACK_PHOTOS[:]
+        backups = FALLBACK_PHOTOS[:]
 
-        random.shuffle(fallback)
+        random.shuffle(backups)
 
-        for u in fallback:
+        for url in backups:
 
             if len(usable) >= count:
                 break
 
-            dest = OUT / f"fallback_{len(usable)+1:02d}.jpg"
+            path = OUT / (
+                f"backup_{len(usable)+1:02d}.jpg"
+            )
 
             try:
 
-                download_image(u, dest)
+                download_image(
+                    url,
+                    path
+                )
 
                 usable.append(
                     (
-                        dest,
+                        path,
                         "Unsplash",
-                        "Fallback photo"
+                        "Backup image"
                     )
+                )
+
+                print(
+                    "Backup image:",
+                    path.name
                 )
 
             except Exception as e:
 
-                dest.unlink(missing_ok=True)
+                path.unlink(
+                    missing_ok=True
+                )
 
                 print(
-                    "Fallback skipped:",
+                    "Backup failed:",
                     str(e)[:100]
                 )
 
     if len(usable) < 4:
 
         raise RuntimeError(
-            f"Not enough usable images ({len(usable)}); need at least 4."
+            "Could not download enough images."
         )
 
     return usable
 
 
-async def make_voice(text, mp3):
+# ============================================================
+# AI VOICE GENERATION
+# ============================================================
+
+async def generate_voice(
+    narration,
+    output
+):
 
     voices = [
-        "hi-IN-MadhurNeural",
+
         "hi-IN-SwaraNeural",
+
         "hi-IN-NeerjaNeural",
+
+        "hi-IN-MadhurNeural",
+
         "hi-IN-PrabhatNeural"
     ]
 
@@ -362,22 +570,45 @@ async def make_voice(text, mp3):
 
         try:
 
+            output.unlink(
+                missing_ok=True
+            )
+
             await Communicate(
-                text,
-                voice,
-                rate="-2%",
-                pitch="+0Hz"
-            ).save(str(mp3))
 
-            if mp3.exists() and mp3.stat().st_size > 1000:
+                text=narration,
 
-                print("Voice selected:", voice)
+                voice=voice,
+
+                rate="-3%",
+
+                pitch="+0Hz",
+
+                volume="+0%"
+            ).save(
+                str(output)
+            )
+
+            if (
+
+                output.exists()
+
+                and output.stat().st_size > 1000
+
+            ):
+
+                print(
+                    "Voice successful:",
+                    voice
+                )
 
                 return
 
         except Exception as e:
 
-            mp3.unlink(missing_ok=True)
+            output.unlink(
+                missing_ok=True
+            )
 
             print(
                 "Voice failed:",
@@ -385,22 +616,38 @@ async def make_voice(text, mp3):
                 repr(e)
             )
 
-    # Backup voice service
+    # Google TTS backup
 
     try:
 
         from gtts import gTTS
 
-        gTTS(
-            text=text,
-            lang="hi",
-            slow=False
-        ).save(str(mp3))
+        output.unlink(
+            missing_ok=True
+        )
 
-        if mp3.exists() and mp3.stat().st_size > 1000:
+        gTTS(
+
+            text=narration,
+
+            lang="hi",
+
+            slow=False
+
+        ).save(
+            str(output)
+        )
+
+        if (
+
+            output.exists()
+
+            and output.stat().st_size > 1000
+
+        ):
 
             print(
-                "Voice selected: gTTS Hindi fallback"
+                "Using Google TTS fallback"
             )
 
             return
@@ -408,109 +655,243 @@ async def make_voice(text, mp3):
     except Exception as e:
 
         print(
-            "gTTS fallback failed:",
+            "Google TTS failed:",
             repr(e)
         )
 
     raise RuntimeError(
-        "All voice services failed. Retry workflow later."
+        "All voice services failed."
     )
 
 
-def make_subtitles(text, duration, srt):
+# ============================================================
+# AUDIO DURATION
+# ============================================================
 
-    words = text.split()
+def get_audio_duration(audio):
+
+    result = subprocess.run(
+
+        [
+
+            "ffprobe",
+
+            "-v",
+            "error",
+
+            "-show_entries",
+            "format=duration",
+
+            "-of",
+
+            "default=noprint_wrappers=1:nokey=1",
+
+            str(audio)
+
+        ],
+
+        capture_output=True,
+
+        text=True,
+
+        check=True
+    )
+
+    return float(
+        result.stdout.strip()
+    )
+
+
+# ============================================================
+# SUBTITLES
+# ============================================================
+
+def make_subtitles(
+    narration,
+    duration,
+    srt
+):
+
+    words = narration.split()
+
+    if not words:
+        raise RuntimeError(
+            "Narration is empty."
+        )
+
+    # Short subtitle phrases
 
     chunks = [
-        " ".join(words[i:i+6])
-        for i in range(0, len(words), 6)
+
+        " ".join(
+            words[i:i+5]
+        )
+
+        for i in range(
+            0,
+            len(words),
+            5
+        )
     ]
 
-    total = sum(
-        len(c.split())
-        for c in chunks
-    ) or 1
+    total_words = sum(
+        len(chunk.split())
+        for chunk in chunks
+    )
 
-    t = 0
+    current_time = 0
 
     entries = []
 
-    for c in chunks:
+    for chunk in chunks:
+
+        chunk_words = len(
+            chunk.split()
+        )
 
         span = (
             duration
-            * len(c.split())
-            / total
+            * chunk_words
+            / total_words
+        )
+
+        start = current_time
+
+        end = min(
+            duration,
+            current_time + span
         )
 
         entries.append(
             (
-                t,
-                min(duration, t + span),
-                c
+                start,
+                end,
+                chunk
             )
         )
 
-        t += span
+        current_time += span
 
-    def stamp(sec):
+    def timestamp(seconds):
 
-        ms = max(0, int(sec * 1000))
+        milliseconds = int(
+            seconds * 1000
+        )
 
-        h = ms // 3600000
+        hours = (
+            milliseconds
+            // 3600000
+        )
 
-        ms %= 3600000
+        milliseconds %= 3600000
 
-        m = ms // 60000
+        minutes = (
+            milliseconds
+            // 60000
+        )
 
-        ms %= 60000
+        milliseconds %= 60000
 
-        s = ms // 1000
+        secs = (
+            milliseconds
+            // 1000
+        )
 
-        ms %= 1000
+        milliseconds %= 1000
 
         return (
-            f"{h:02}:{m:02}:{s:02},{ms:03}"
+            f"{hours:02}:"
+            f"{minutes:02}:"
+            f"{secs:02},"
+            f"{milliseconds:03}"
         )
 
     with open(
         srt,
         "w",
         encoding="utf-8"
-    ) as f:
+    ) as file:
 
-        for i, (a, b, txt) in enumerate(
+        for number, entry in enumerate(
             entries,
-            1
+            start=1
         ):
 
-            f.write(
-                f"{i}\n"
-                f"{stamp(a)} --> {stamp(b)}\n"
-                f"{txt}\n\n"
+            start, end, text = entry
+
+            file.write(
+
+                f"{number}\n"
+
+                f"{timestamp(start)} --> "
+                f"{timestamp(end)}\n"
+
+                f"{text}\n\n"
             )
 
 
-def assemble(images, voice, duration, output):
+# ============================================================
+# VIDEO RENDERING
+# ============================================================
 
-    # Reliable rendering without zoompan.
+def assemble(
+    images,
+    voice,
+    duration,
+    output,
+    narration
+):
 
-    segdur = duration / len(images)
+    print(
+        "Starting video rendering..."
+    )
+
+    segment_duration = (
+        duration
+        / len(images)
+    )
 
     segments = []
 
-    for i, (path, artist, title) in enumerate(images):
+    # Render individual scenes
 
-        seg = OUT / f"segment_{i:02d}.mp4"
+    for index, image_info in enumerate(
+        images
+    ):
+
+        image_path = image_info[0]
+
+        segment = OUT / (
+            f"segment_{index:02d}.mp4"
+        )
+
+        print(
+            "Rendering scene:",
+            index + 1,
+            "/",
+            len(images)
+        )
 
         run([
+
             "ffmpeg",
+
             "-y",
-            "-loop", "1",
-            "-framerate", "30",
-            "-i", str(path),
-            "-t", f"{segdur:.4f}",
+
+            "-loop",
+            "1",
+
+            "-framerate",
+            "30",
+
+            "-i",
+            str(image_path),
+
+            "-t",
+            f"{segment_duration:.4f}",
+
             "-vf",
+
             (
                 "scale=1080:1920:"
                 "force_original_aspect_ratio=increase,"
@@ -518,183 +899,262 @@ def assemble(images, voice, duration, output):
                 "fps=30,"
                 "setsar=1"
             ),
-            "-c:v", "libx264",
-            "-preset", "ultrafast",
-            "-pix_fmt", "yuv420p",
+
+            "-c:v",
+            "libx264",
+
+            "-preset",
+            "ultrafast",
+
+            "-pix_fmt",
+            "yuv420p",
+
             "-an",
-            str(seg)
+
+            str(segment)
+
         ])
 
-        segments.append(seg)
+        segments.append(
+            segment
+        )
 
-    concat = OUT / "concat.txt"
+    # Join scenes
 
-    concat.write_text(
+    concat_file = OUT / "concat.txt"
+
+    concat_file.write_text(
+
         "".join(
+
             "file '"
-            + p.resolve().as_posix()
+            + segment.resolve().as_posix()
             + "'\n"
-            for p in segments
+
+            for segment in segments
+
         ),
+
         encoding="utf-8"
     )
 
-    silent = OUT / "silent.mp4"
+    silent_video = OUT / "silent.mp4"
 
-    run([
-        "ffmpeg",
-        "-y",
-        "-f", "concat",
-        "-safe", "0",
-        "-i", str(concat),
-        "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-pix_fmt", "yuv420p",
-        "-an",
-        str(silent)
-    ])
-
-    srt = OUT / "captions.srt"
-
-    make_subtitles(
-        narration,
-        duration,
-        srt
+    print(
+        "Joining video scenes..."
     )
 
-    srt_path = (
-        srt.resolve()
+    run([
+
+        "ffmpeg",
+
+        "-y",
+
+        "-f",
+        "concat",
+
+        "-safe",
+        "0",
+
+        "-i",
+        str(concat_file),
+
+        "-c:v",
+        "libx264",
+
+        "-preset",
+        "ultrafast",
+
+        "-pix_fmt",
+        "yuv420p",
+
+        "-an",
+
+        str(silent_video)
+
+    ])
+
+    # Generate subtitles
+
+    subtitle_file = OUT / "captions.srt"
+
+    make_subtitles(
+
+        narration,
+
+        duration,
+
+        subtitle_file
+
+    )
+
+    # Subtitle formatting
+
+    subtitle_path = (
+        subtitle_file
+        .resolve()
         .as_posix()
+    )
+
+    subtitle_path = (
+        subtitle_path
         .replace(":", "\\:")
+        .replace("'", "\\'")
     )
 
     style = (
+
         "FontName=DejaVu Sans,"
-        "FontSize=20,"
+
+        "FontSize=21,"
+
         "Bold=1,"
+
         "PrimaryColour=&H0000FFFF,"
+
         "OutlineColour=&H00000000,"
+
         "BorderStyle=1,"
+
         "Outline=3,"
+
         "Shadow=1,"
+
         "Alignment=2,"
+
         "MarginV=170"
+
     )
 
-    vf = (
-        f"subtitles='{srt_path}':"
+    subtitle_filter = (
+
+        f"subtitles='{subtitle_path}':"
+
         f"force_style='{style}'"
+
     )
+
+    print(
+        "Adding subtitles and audio..."
+    )
+
+    # Final video
 
     run([
+
         "ffmpeg",
+
         "-y",
-        "-i", str(silent),
-        "-i", str(voice),
-        "-vf", vf,
-        "-c:v", "libx264",
-        "-preset", "veryfast",
-        "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        "-b:a", "160k",
+
+        "-i",
+        str(silent_video),
+
+        "-i",
+        str(voice),
+
+        "-vf",
+        subtitle_filter,
+
+        "-c:v",
+        "libx264",
+
+        "-preset",
+        "veryfast",
+
+        "-pix_fmt",
+        "yuv420p",
+
+        "-c:a",
+        "aac",
+
+        "-b:a",
+        "192k",
+
         "-shortest",
+
+        "-movflags",
+        "+faststart",
+
         str(output)
+
     ])
 
+    print(
+        "Rendering finished successfully!"
+    )
+
+
+# ============================================================
+# CAPTION AND POSTING INFORMATION
+# ============================================================
+
+def create_posting_copy(story):
+
+    title = story.get(
+        "title",
+        "Machine Ka Raaz"
+    )
+
+    narration = story.get(
+        "narration",
+        ""
+    )
+
+    caption = f"""
+{title}
+
+{narration}
+
+Har machine ke andar chhupa hai ek raaz.
+
+Follow TORQUENAUT for more automotive secrets.
+
+#MachineKaRaaz #TorqueNaut #Automotive
+#Cars #Bikes #Engineering #AutoFacts
+#HindiFacts #CarFacts #BikeFacts
+#ReelsIndia #YouTubeShorts #Technology
+""".strip()
+
+    return caption
+
+
+# ============================================================
+# MAIN FACTORY
+# ============================================================
 
 def main():
 
-    # Remove old output files
+    print("=" * 50)
 
-    for p in OUT.iterdir():
+    print(
+        "TORQUENAUT VIDEO FACTORY STARTED"
+    )
 
-        if p.is_file():
-            p.unlink()
+    print("=" * 50)
+
+    # Clear previous output
+
+    clean_output()
+
+    # Generate script
 
     story = create_story()
 
-    print(
-        "Topic:",
-        story.get("topic")
-    )
+    narration = story["narration"]
 
-    print(
-        "Title:",
-        story.get("title")
-    )
+    # Download images
 
     images = fetch_images(
-        story.get("searches", []),
-        8
-    )
 
-    voice = OUT / "voice.mp3"
-
-    asyncio.run(
-        make_voice(
-            story["narration"],
-            voice
-        )
-    )
-
-    probe = subprocess.run(
-        [
-            "ffprobe",
-            "-v", "error",
-            "-show_entries", "format=duration",
-            "-of",
-            "default=noprint_wrappers=1:nokey=1",
-            str(voice)
-        ],
-        capture_output=True,
-        text=True,
-        check=True
-    )
-
-    duration = float(
-        probe.stdout.strip()
-    )
-
-    output = OUT / "torquenaut_reel.mp4"
-
-    assemble(
-        images,
-        voice,
-        duration,
-        output
-    )
-
-    copy = (
-        f"TITLE: {story.get('title', 'Machine Ka Raaz')}\n\n"
-        f"CAPTION:\n{story['narration']}\n\n"
-        "HASHTAGS:\n"
-        "#MachineKaRaaz #TorqueNaut #Cars #Bikes "
-        "#Automotive #Engineering #HindiFacts "
-        "#Reels #Shorts"
-    )
-
-    (
-        OUT / "posting_copy.txt"
-    ).write_text(
-        copy,
-        encoding="utf-8"
-    )
-
-    (
-        OUT / "image_sources.txt"
-    ).write_text(
-        "\n".join(
-            f"{title} | creator: {artist} | file: {path.name}"
-            for path, artist, title in images
+        story.get(
+            "searches",
+            []
         ),
-        encoding="utf-8"
+
+        count=8
+
     )
 
-    print(
-        "SUCCESS - Video created:",
-        output
-    )
+    # Generate voice
 
-
-if __name__ == "__main__":
-    main()
+    voic
