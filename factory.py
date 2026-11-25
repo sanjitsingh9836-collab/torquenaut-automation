@@ -98,12 +98,12 @@ def subtitles(narration,duration,path):
   return f"{h}:{m:02}:{s:05.2f}"
  stop={"hai","hain","ka","ki","ke","se","aur","ek","ye","is","to","mein","ko","par","the","a","an"}
  with open(path,"w",encoding="utf-8") as f:
-  f.write("[Script Info]\\nScriptType: v4.00+\\nPlayResX: 1080\\nPlayResY: 1920\\nWrapStyle: 2\\n\\n[V4+ Styles]\\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\\nStyle: Default,DejaVu Sans,66,&H00FFFFFF,&H0000FFFF,&H00151515,&H99000000,-1,0,0,0,100,100,0,0,1,5,2,2,90,90,250,1\\n\\n[Events]\\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\\n")
+  f.write("[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\nWrapStyle: 2\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,DejaVu Sans,66,&H00FFFFFF,&H0000FFFF,&H00151515,&H99000000,-1,0,0,0,100,100,0,0,1,5,2,2,90,90,250,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
   for chunk in chunks:
    n=len(chunk.split()); end=min(duration,t+duration*n/total)
    ws=chunk.split(); key=max((w for w in ws if w.lower().strip(".,!?") not in stop),key=len,default=ws[-1])
-   marked=chunk.replace(key,"{\\\\c&H0000BFFF&}"+key+"{\\\\c&H00FFFFFF&}",1)
-   f.write(f"Dialogue: 0,{stamp(t)},{stamp(end)},Default,,0,0,0,,{marked}\\n")
+   marked=chunk.replace(key,"{\\c&H0000BFFF&}"+key+"{\\c&H00FFFFFF&}",1)
+   f.write(f"Dialogue: 0,{stamp(t)},{stamp(end)},Default,,0,0,0,,{marked}\n")
    t=end
 
 def render(paths,audio,duration,narration,final,title):
@@ -117,7 +117,7 @@ def render(paths,audio,duration,narration,final,title):
   vf=f"zoompan=z='{z}':x='{x}':y='{y}':d={int(per*30)}:s=1080x1920:fps=30,fade=t=in:st=0:d=0.18,eq=contrast=1.04:saturation=1.10,format=yuv420p"
   run(["ffmpeg","-y","-loop","1","-i",str(img),"-t",f"{per:.3f}","-vf",vf,"-r","30","-c:v","libx264","-preset","veryfast","-an",str(seg)])
   segs.append(seg)
- concat=OUT/"concat.txt"; concat.write_text("".join(f"file '{p.resolve().as_posix()}'\\n" for p in segs),encoding="utf8")
+ concat=OUT/"concat.txt"; concat.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in segs),encoding="utf8")
  silent=OUT/"silent.mp4"
  run(["ffmpeg","-y","-f","concat","-safe","0","-i",str(concat),"-c","copy",str(silent)])
  ass=OUT/"captions.ass"; subtitles(narration,duration,ass)
