@@ -9,51 +9,50 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: torquenaut-video-factory
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: pip
 
-      - name: Install FFmpeg
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Create output folder
-        run: mkdir -p output
-
-      - name: Run TorqueNaut Video Factory
+      - name: Run video factory
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python factory.py
 
-      - name: Find generated files
+      - name: Verify generated video
         run: |
-          echo "Checking generated files..."
-          find . -maxdepth 3 -type f
+          ls -lah output/
+          test -n "$(find output -maxdepth 1 -type f -name '*.mp4' -print -quit)"
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 output/*.mp4
 
-      - name: Upload generated videos and files
+      - name: Upload generated files
         uses: actions/upload-artifact@v5
         with:
           name: TORQUENAUT-VIDEO-${{ github.run_number }}
-          path: |
-            output/
-            *.mp4
-            *.srt
-            *.txt
-          if-no-files-found: warn
+          path: output/
+          if-no-files-found: error
           retention-days: 7
