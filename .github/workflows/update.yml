@@ -1,4 +1,4 @@
-name: Update TORQUENAUT files
+name: Update Factory
 
 on:
   workflow_dispatch:
@@ -14,43 +14,67 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract and install v4 files
+      - name: Find and extract factory ZIP
         run: |
           python - <<'PY'
           import zipfile
-          from pathlib import Path
+          import os
+          import shutil
+          import glob
 
-          zip_path = Path("torquenaut-automation-v6.zip")
+          zip_files = glob.glob("*fixed.zip") + glob.glob("*v6*.zip")
 
-          if not zip_path.exists():
-              raise FileNotFoundError(
-                  f"ZIP not found: {zip_path}. "
-                  "Upload it to the root of the repository."
-              )
+          if not zip_files:
+              zip_files = glob.glob("*.zip")
 
-          with zipfile.ZipFile(zip_path) as z:
-              z.extractall("update-temp")
+          if not zip_files:
+              raise FileNotFoundError("No factory ZIP found in repository root")
 
-          root = Path("update-temp/torquenaut-starter")
+          zip_path = zip_files[-1]
+          print("Using ZIP:", zip_path)
 
-          for name in ["factory.py", "requirements.txt", "README.md"]:
-              src = root / name
+          extract_dir = "update-temp"
+          shutil.rmtree(extract_dir, ignore_errors=True)
+          os.makedirs(extract_dir, exist_ok=True)
 
-              if not src.exists():
-                  raise FileNotFoundError(f"Missing file inside ZIP: {src}")
+          with zipfile.ZipFile(zip_path, "r") as z:
+              z.extractall(extract_dir)
 
-              Path(name).write_bytes(src.read_bytes())
+          factory_files = glob.glob(
+              os.path.join(extract_dir, "**", "factory.py"),
+              recursive=True
+          )
 
-          print("TORQUENAUT v4 files installed successfully.")
+          if not factory_files:
+              raise FileNotFoundError("factory.py not found inside ZIP")
+
+          factory_path = factory_files[0]
+          source_dir = os.path.dirname(factory_path)
+
+          print("Factory found:", factory_path)
+
+          for filename in ["factory.py", "requirements.txt", "README.md"]:
+              source = os.path.join(source_dir, filename)
+
+              if os.path.exists(source):
+                  shutil.copy2(source, filename)
+                  print("Updated:", filename)
+              else:
+                  print("Skipped missing:", filename)
+
+          shutil.rmtree(extract_dir, ignore_errors=True)
           PY
 
-      - name: Commit updated files
+      - name: Commit updated factory
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add factory.py requirements.txt README.md
 
-          git commit -m "Update TORQUENAUT to v4" || echo "No changes to commit"
-
-          git push
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update TORQUENAUT factory"
+            git push
+          fi
