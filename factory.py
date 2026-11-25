@@ -144,6 +144,6 @@ def main():
  (OUT/"topic.txt").write_text(s.get("topic",""),encoding="utf8")
  (OUT/"narration.txt").write_text(narration,encoding="utf8")
  (OUT/"posting_copy.txt").write_text(posting(s),encoding="utf8")
- (OUT/"image_sources.txt").write_text("Downloaded visuals from Wikimedia Commons searches; fallback photos from Unsplash.\n",encoding="utf8")
+ (OUT/"image_sources.txt").write_text("\n".join(f"{i+1}. {u}" for i,u in enumerate(IMAGE_SOURCES))+"\n",encoding="utf8")
  print("SUCCESS: Video:",final,"Duration:",round(length,2),"seconds")
 if __name__=="__main__": main()
