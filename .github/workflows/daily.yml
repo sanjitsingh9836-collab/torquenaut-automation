@@ -46,8 +46,10 @@ jobs:
       - name: Verify generated video
         run: |
           ls -lah output/
-          test -n "$(find output -maxdepth 1 -type f -name '*.mp4' -print -quit)"
-          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 output/*.mp4
+          VIDEO="$(find output -maxdepth 1 -type f -name 'TORQUENAUT_*.mp4' -print -quit)"
+          test -n "$VIDEO"
+          echo "Verifying final video: $VIDEO"
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$VIDEO"
 
       - name: Upload generated files
         uses: actions/upload-artifact@v5
