@@ -1,4 +1,4 @@
-# TORQUENAUT Automation v5
+# TORQUENAUT Automation v6
 
 This update improves the image-fetching resilience:
 - Searches Wikimedia Commons with multiple query phrases.
@@ -10,4 +10,7 @@ This update improves the image-fetching resilience:
 **Honest limitation:** this is a photo-based motion video (pan/zoom), not generative AI video footage. Publishing to YouTube/Instagram is not automated by this package.
 
 ## Installation
-Run the existing GitHub updater workflow after uploading `torquenaut-automation-v5.zip` to the repository root and changing the updater's ZIP filename to v5.
+Run the existing GitHub updater workflow after uploading `torquenaut-automation-v6.zip` to the repository root and changing the updater's ZIP filename to v6.
+
+
+Version 6 fixes the FFmpeg zoom/pan rendering failure by using safer frame-based motion expressions.
